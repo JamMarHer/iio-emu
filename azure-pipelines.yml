@@ -10,6 +10,13 @@ jobs:
   - job: LinuxBuilds
     strategy:
       matrix:
+        ubuntu_20_04_x86_64:
+          imageName: 'ubuntu-latest'
+          OS_TYPE: 'ubuntu_docket'
+          OS_VERSION: 'focal'
+          artifactName: 'Linux-Ubuntu-20.04_x86-64'
+          PACKAGE_TO_INSTALL: 'build/*.deb'
+          BUILD_TYPE: "ubuntu"
 
         clang_format:
           imageName: 'ubuntu-20.04'
@@ -22,6 +29,12 @@ jobs:
         fetchDepth: 1
         clean: true
         persistCredentials: true
+
+      - script: ./ci/azure/before_install_linux.sh
+        displayName: Install dependencies
+
+      - script: ./ci/azure/make_linux.sh
+        displayName: Build
 
       - script: ./ci/azure/deps.sh
         displayName: Install Dependencies
