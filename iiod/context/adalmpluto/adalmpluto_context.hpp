@@ -37,31 +37,30 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "factory_ops.hpp"
+#ifndef IIO_EMU_ADALMPLUTO_CONTEXT_HPP
+#define IIO_EMU_ADALMPLUTO_CONTEXT_HPP
 
-#include "abstract_ops.hpp"
-#include "iiod/context/adalm2000/adalm2000_context.hpp"
-#include "iiod/context/adalmpluto/adalmpluto_context.hpp"
 #include "iiod/context/generic_xml/generic_xml_context.hpp"
 
-using namespace iio_emu;
+#include <string>
+#include <vector>
 
-AbstractOps* FactoryOps::buildOps(const char* type, std::vector<const char*>& args)
+namespace iio_emu {
+
+class AdalmPlutoContext : public GenericXmlContext
 {
-	AbstractOps* iiodOpsAbstract;
+public:
+	AdalmPlutoContext();
+	~AdalmPlutoContext() override;
 
-	if (!strncmp(type, "generic_xml", sizeof("generic_xml") - 1)) {
-		if (args.empty()) {
-			return nullptr;
-		}
-		iiodOpsAbstract = new GenericXmlContext(args.at(0));
-	} else if (!strncmp(type, "adalm2000", sizeof("adalm2000") - 1)) {
-		iiodOpsAbstract = new Adalm2000Context();
-	} else if (!strncmp(type, "adalmpluto", sizeof("adalmpluto") - 1)) {
-		iiodOpsAbstract = new AdalmPlutoContext();
-	} else {
-		return nullptr;
-	}
+	ssize_t chWriteAttr(const char* device_id, const char* channel, bool ch_out, const char* attr, const char* buf,
+			    size_t len) override;
 
-	return iiodOpsAbstract;
-}
+private:
+	std::vector<double> m_ps_calib_coefficients;
+	std::vector<double> m_ps_write_coefficients;
+	std::vector<double> m_ps_read_coefficients;
+	std::vector<std::string> m_ps_current_values;
+};
+} // namespace iio_emu
+#endif // IIO_EMU_ADALMPLUTO_CONTEXT_HPP

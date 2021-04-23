@@ -37,31 +37,71 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "factory_ops.hpp"
+#include "adalmpluto_context.hpp"
 
-#include "abstract_ops.hpp"
-#include "iiod/context/adalm2000/adalm2000_context.hpp"
-#include "iiod/context/adalmpluto/adalmpluto_context.hpp"
-#include "iiod/context/generic_xml/generic_xml_context.hpp"
+#include "iiod/context/adalmpluto/devices/cf_ad9361_dds_core_lpc.hpp"
+#include "iiod/context/adalmpluto/devices/cf_ad9361_lpc.hpp"
+#include "utils/attr_ops_xml.hpp"
+#include "utils/utility.hpp"
+
+#include <adalmpluto_xml.h>
+#include <libxml/tree.h>
 
 using namespace iio_emu;
 
-AbstractOps* FactoryOps::buildOps(const char* type, std::vector<const char*>& args)
+enum CALIBRATION_COEFFICIENT
 {
-	AbstractOps* iiodOpsAbstract;
+	DAC_OFFSET_POS = 0,
+	DAC_GAIN_POS = 1,
+	ADC_OFFSET_POS = 2,
+	ADC_GAIN_POS = 3,
+	DAC_OFFSET_NEG = 4,
+	DAC_GAIN_NEG = 5,
+	ADC_OFFSET_NEG = 6,
+	ADC_GAIN_NEG = 7
+};
 
-	if (!strncmp(type, "generic_xml", sizeof("generic_xml") - 1)) {
-		if (args.empty()) {
-			return nullptr;
-		}
-		iiodOpsAbstract = new GenericXmlContext(args.at(0));
-	} else if (!strncmp(type, "adalm2000", sizeof("adalm2000") - 1)) {
-		iiodOpsAbstract = new Adalm2000Context();
-	} else if (!strncmp(type, "adalmpluto", sizeof("adalmpluto") - 1)) {
-		iiodOpsAbstract = new AdalmPlutoContext();
-	} else {
-		return nullptr;
+AdalmPlutoContext::AdalmPlutoContext()
+	: GenericXmlContext(reinterpret_cast<const char*>(adalmpluto_xml), sizeof(adalmpluto_xml))
+{
+	// devices
+	auto dac_tx = new AD9361DACTX("iio:device3", m_doc);
+	auto adc_rx = new AD9361ADCRX("iio:device4", m_doc);
+
+	addDevice(dac_tx);
+	addDevice(adc_rx);
+
+	assignBasicOps();
+
+	m_ps_write_coefficients.push_back(4095.0 / (5.02 * 1.2));
+	m_ps_write_coefficients.push_back(4095.0 / (-5.1 * 1.2));
+	m_ps_read_coefficients.push_back(6.4 / 4095.0);
+	m_ps_read_coefficients.push_back((-6.4) / 4095.0);
+
+	m_ps_current_values = std::vector<std::string>(2);
+}
+
+AdalmPlutoContext::~AdalmPlutoContext()
+{
+	delete m_iiodOps;
+	m_iiodOps = nullptr;
+
+	xmlFreeDoc(m_doc);
+	xmlCleanupParser();
+	m_doc = nullptr;
+
+	delete m_ctx_xml;
+	m_ctx_xml = nullptr;
+
+	for (auto dev : m_devices) {
+		delete dev;
+		dev = nullptr;
 	}
+}
 
-	return iiodOpsAbstract;
+ssize_t AdalmPlutoContext::chWriteAttr(const char* device_id, const char* channel, bool ch_out, const char* attr,
+				       const char* buf, size_t len)
+{
+	auto ret = GenericXmlContext::chWriteAttr(device_id, channel, ch_out, attr, buf, len);
+	return ret;
 }
